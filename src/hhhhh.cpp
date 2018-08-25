@@ -1,5 +1,5 @@
-#define raggio 0.19
-#define OMPL_time 5.0
+#define raggio 0.18
+#define OMPL_time 20.0
 
 #include <ompl/control/SpaceInformation.h>
 #include <ompl/base/goals/GoalState.h>
@@ -15,6 +15,7 @@
 #include <ompl/control/planners/est/EST.h>
 #include <ompl/control/SimpleSetup.h>
 #include <ompl/control/PathControl.h>
+#include <ompl/control/Control.h>
 #include <ompl/geometric/PathGeometric.h>
 #include <ompl/config.h>
 #include <iostream>
@@ -26,6 +27,7 @@
 #include <ompl/geometric/planners/kpiece/BKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTsharp.h>
 
+#include <ompl/control/planners/kpiece/KPIECE1.h>
 
 
 #include "ros/ros.h"
@@ -140,6 +142,12 @@ char * getCostMap(int * wid,int * hei,double * res,geometry_msgs::Pose * origin)
     *res=resolution;
     *origin=pose;
     return toRet;
+}
+
+void wait(double sec)
+{
+ros::Rate rate(1.0/sec);
+rate.sleep();
 }
 
 void toEulerAngle(geometry_msgs::Quaternion q, double* roll, double* pitch, double* yaw)
@@ -722,12 +730,12 @@ void changeParameters1()
     changeYawGoalTolerance(0.7);
     changeXYGoalTolerance(0.10);
 
-    changePathDistanceBias(2);
+    changePathDistanceBias(20.0);
     changeGoalDistanceBias(60);
-    changeOccdistScale(0.5);
-   // changeForwardPointDistance(0.32);
+    changeOccdistScale(0.2);
+    changeForwardPointDistance(0.32);
 
-    changeLocalCostmapHeightWidth(4);
+    changeLocalCostmapHeightWidth(5);
 
     changeClearingRotation(true);
     changeRecoveryBehavior(true);
@@ -758,10 +766,10 @@ void changeParameters2()
     changeYawGoalTolerance(3.14);
     changeXYGoalTolerance(0.03);
 
-    changePathDistanceBias(50);
-    changeGoalDistanceBias(25);
+    changePathDistanceBias(100.0);
+    changeGoalDistanceBias(24);
     changeOccdistScale(0.01);
-    //changeForwardPointDistance(0.03);
+    changeForwardPointDistance(0.03);
 
     changeLocalCostmapHeightWidth(2);
 
@@ -789,15 +797,15 @@ void changeParameters3()
 
     setInflationObstacleLayer(true);
 
-    changeYawGoalTolerance(0.3);
+    changeYawGoalTolerance(0.7);
     changeXYGoalTolerance(0.10);
 
-    changePathDistanceBias(2);
+    changePathDistanceBias(20.0);
     changeGoalDistanceBias(60);
-    changeOccdistScale(0.5);
-    //changeForwardPointDistance(0.32);
+    changeOccdistScale(0.2);
+    changeForwardPointDistance(0.32);
 
-    changeLocalCostmapHeightWidth(4);
+    changeLocalCostmapHeightWidth(5);
 
     changeClearingRotation(true);
     changeRecoveryBehavior(true);
@@ -811,7 +819,7 @@ void changeParameters4()
     changeTransVel(0.1,0.5,0.1);
     changeXVel(0.0,0.5);
 
-    changeSimulationTime(1);
+    changeSimulationTime(2);
     changeVTHSamples(20);
     changeVXSamples(10);
 
@@ -824,15 +832,15 @@ void changeParameters4()
     changeCostmapResolution(0.05);
 
     setInflationObstacleLayer(false);
-    changeYawGoalTolerance(0.3);
+    changeYawGoalTolerance(3.14);
     changeXYGoalTolerance(0.05);
 
-    changePathDistanceBias(32);
-    changeGoalDistanceBias(20);
-    changeOccdistScale(0.5);
-    //changeForwardPointDistance(0.20);
+    changePathDistanceBias(100.0);
+    changeGoalDistanceBias(24);
+    changeOccdistScale(0.01);
+    changeForwardPointDistance(0.20);
 
-    changeLocalCostmapHeightWidth(4);
+    changeLocalCostmapHeightWidth(1);
 
     changeClearingRotation(false);
     changeRecoveryBehavior(false);
@@ -861,10 +869,10 @@ void changeParameters5()
     changeYawGoalTolerance(3.14);
     changeXYGoalTolerance(0.03);
 
-    changePathDistanceBias(50);
-    changeGoalDistanceBias(25);
+    changePathDistanceBias(100.0);
+    changeGoalDistanceBias(24);
     changeOccdistScale(0.01);
-    //changeForwardPointDistance(0.03);
+    changeForwardPointDistance(0.03);
 
     changeLocalCostmapHeightWidth(1);
 
@@ -993,17 +1001,17 @@ void plan()
 
     space->setBounds(bounds);
 
-    space->setLongestValidSegmentFraction(0.001);
+    space->setLongestValidSegmentFraction(0.01);
 
     // create a control space
     auto cspace(std::make_shared<oc::RealVectorControlSpace>(space, 2));
 
     // set the bounds for the control space
     ob::RealVectorBounds cbounds(2);
-    cbounds.setLow(0,-0.3);
-    cbounds.setHigh(0,0.3);
-    cbounds.setLow(1,-0.3);
-    cbounds.setHigh(1,0.3);
+    cbounds.setLow(0,0.0);
+    cbounds.setHigh(0,0.2);
+    cbounds.setLow(1,-0.2);
+    cbounds.setHigh(1,0.2);
 
     cspace->setBounds(cbounds);
 
@@ -1014,12 +1022,15 @@ void plan()
     si->setStateValidityChecker(
                 [&si](const ob::State *state) { return isStateValid(si.get(), state); });
     
-    si->setStateValidityCheckingResolution(0.001);
+    si->setStateValidityCheckingResolution(0.01);
 
     // set the state propagation routine
     si->setStatePropagator(propagate);
 
     si->setValidStateSamplerAllocator(allocOBValidStateSampler);
+
+    si->setPropagationStepSize(0.1);
+    si->setMinMaxControlDuration(1,50);
 
     // create a start state
     ob::ScopedState<ob::SE2StateSpace> start(space);
@@ -1034,8 +1045,7 @@ void plan()
     (*goal)[1]->as<ob::SO2StateSpace::StateType>()->value = 0.0;*/
     (*goal)[0]->as<ob::RealVectorStateSpace::StateType>()->values[0] = 0.65;
     (*goal)[0]->as<ob::RealVectorStateSpace::StateType>()->values[1] = 1.18;
-    (*goal)[1]->as<ob::SO2StateSpace::StateType>()->value = 0.0;
-
+    (*goal)[1]->as<ob::SO2StateSpace::StateType>()->value = 3.14/2.0;
 
 
     // create a problem instance
@@ -1053,17 +1063,21 @@ void plan()
     //auto planner(std::make_shared<ompl::geometric::RRTstar>(si));
     //auto planner(std::make_shared<ompl::geometric::BKPIECE1>(si));
     //auto planner(std::make_shared<oc::EST>(si));
-    //auto planner(std::make_shared<oc::KPIECE1>(si));
+    auto planner(std::make_shared<oc::KPIECE1>(si));
     //auto planner(std::make_shared<ompl::geometric::SPARStwo>(si));
-    auto planner(std::make_shared<ompl::geometric::InformedRRTstar>(si));
+    //auto planner(std::make_shared<ompl::geometric::InformedRRTstar>(si));
 
 
     // set the problem we are trying to solve for the planner
     planner->setProblemDefinition(pdef);
 
+std::vector<double> cs(2);
+     cs[0] = cs[1] = 0.02;
+
     // perform setup steps for the planner
     planner->setup();
 
+si->getStateSpace()->getDefaultProjection()->setCellSizes(cs);
 
     // print the settings for this space
     si->printSettings(std::cout);
@@ -1111,7 +1125,7 @@ pathLength=-1;
 	pathX[i]=x;
         pathY[i]=y;
 
-        printf("%d: X: %d, Y: %d\n",i+1,(int)floor((x+offsetX)/resolution),(int)floor((y+offsetY)/resolution));
+      //  printf("%d: X: %d, Y: %d\n",i+1,(int)floor((x+offsetX)/resolution),(int)floor((y+offsetY)/resolution));
         map[((int)floor((x+offsetX)/resolution))+((int)floor((y+offsetY)/resolution))*width]=3;
 
 
@@ -1134,8 +1148,31 @@ pathLength=-1;
 
         }
         printf("\n");
-
     }
+
+/*ros::NodeHandle nh;
+  ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/turtlebot/mobile_base/commands/velocity", 100);
+  wait(3.0);
+
+    ompl::control::PathControl pathC=*(pathh->as<ompl::control::PathControl>());
+    for(int i=0;i<pathC.getControlCount();i++)
+    {
+        double* ctrl = (pathC.getControl(i))->as<oc::RealVectorControlSpace::ControlType>()->values;
+
+      double x=ctrl[0];
+      double yaw=ctrl[1];
+	double duration=0.067585;//pathC.getControlDuration(i);
+	
+geometry_msgs::Twist msg;
+     msg.linear.x = x;     msg.angular.z = yaw;
+     pub.publish(msg);
+wait(1.0);
+
+       // printf("%d: X: %f, YAW: %f, duration: %f\n",i+1,x,yaw,pathC.getControlDuration(i));
+    }*/
+printf("DISTANCE: %f",pdef->getSolutionDifference());
+
+
 }
 
 int main(int argc, char ** argv)
@@ -1147,8 +1184,8 @@ int main(int argc, char ** argv)
     offsetX=-origin.position.x;
     offsetY=-origin.position.y;
 
-    getRobotPose();
-   /* changeParameters1();
+    /*getRobotPose();
+    changeParameters1();
     while(!sendGoalPose(-1.347,-0.332,3));
 
     getRobotPose();
@@ -1157,15 +1194,15 @@ int main(int argc, char ** argv)
 
     getRobotPose();
     changeParameters3();
-    while(!sendGoalPose(0.40,-1.80,3.14/2.0));
+    while(!sendGoalPose(0.40,-1.80,3.14/2.0));*/
 
 
     getRobotPose();
-    changeParameters4();*/
-    do{
+    //changeParameters4();
+    //do{
         plan();
-    }while (pathLength==-1);
-   /* for(int i=1;i<pathLength;i++)
+    /*}while (pathLength==-1);
+    for(int i=1;i<pathLength;i++)
     {
         sendGoalPose(pathX[i],pathY[i],3.14/2.0);
     }

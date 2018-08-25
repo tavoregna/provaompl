@@ -144,6 +144,10 @@ add_executable(passaggio src/passaggio.cpp)
 add_dependencies(passaggio ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(passaggio ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
 
+add_executable(hhhhh src/hhhhh.cpp)
+add_dependencies(hhhhh ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(hhhhh ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
+
 add_executable(prova_mappa src/prova_mappa.cpp)
 add_dependencies(prova_mappa ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(prova_mappa ${catkin_LIBRARIES})
@@ -152,10 +156,17 @@ add_executable(funzioni src/funzioni.cpp)
 add_dependencies(funzioni ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(funzioni ${catkin_LIBRARIES})
 
+add_executable(mappa src/mappa.cpp)
+add_dependencies(mappa ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(mappa ${catkin_LIBRARIES})
+
 add_executable(transform src/transform.cpp)
 add_dependencies(transform ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(transform ${catkin_LIBRARIES})
 
+add_executable(command src/command.cpp)
+add_dependencies(command ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(command ${catkin_LIBRARIES})
 
 add_executable(definitivo src/definitivo.cpp)
 add_dependencies(definitivo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
