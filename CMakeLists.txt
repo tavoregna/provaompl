@@ -144,6 +144,14 @@ add_executable(passaggio src/passaggio.cpp)
 add_dependencies(passaggio ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(passaggio ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
 
+add_executable(challenge src/challenge.cpp)
+add_dependencies(challenge ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(challenge ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
+
+add_executable(docking src/docking.cpp)
+add_dependencies(docking ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(docking ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
+
 add_executable(hhhhh src/hhhhh.cpp)
 add_dependencies(hhhhh ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(hhhhh ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
