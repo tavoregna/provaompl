@@ -971,7 +971,7 @@ ob::OptimizationObjectivePtr getPathLengthObjective(const ob::SpaceInformationPt
     return ob::OptimizationObjectivePtr(new ob::PathLengthOptimizationObjective(si));
 }
 
-void plan(double xx, double yy, double yaww)
+void plan(double xx, double yy, double yaww,double time)
 {
 
     // construct the state space we are planning in
@@ -1069,7 +1069,7 @@ void plan(double xx, double yy, double yaww)
     pdef->print(std::cout);
 
     // attempt to solve the problem within ten seconds of planning time
-    ob::PlannerStatus solved = planner->ob::Planner::solve(OMPL_time);
+    ob::PlannerStatus solved = planner->ob::Planner::solve(time);
 
     ob::PathPtr pathh;
 pathLength=-1;
@@ -1091,7 +1091,7 @@ pathLength=-1;
     }
 
     ompl::geometric::PathGeometric path=*(pathh->as<ompl::geometric::PathGeometric>());
-    path.interpolate(10);
+    path.interpolate(8);
     pathLength=path.getStateCount();
     pathX=(double *)malloc(pathLength*sizeof(double));
     pathY=(double *)malloc(pathLength*sizeof(double));
@@ -1161,38 +1161,40 @@ int main(int argc, char ** argv)
     offsetY=-origin.position.y;
 
     do{
-    //da punto di partenza a passaggio stretto
-    getRobotPose();
-    changeParametersOstacoli();
-    if(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw))
-    {
-       sendGoalPose(middlePointX,middlePointY,middlePointYaw);
-        while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw));
-    }
+        //da punto di partenza a passaggio stretto
+        getRobotPose();
+        changeParametersOstacoli();
+        if(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw))
+        {
+           sendGoalPose(middlePointX,middlePointY,middlePointYaw);
+            while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw));
+        }
 
-    //attraverso il passaggio stretto
-    getRobotPose();
-    changeParametersPassaggioStretto();
-    do{
-        plan(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw);
-    }while (pathLength==-1);
+        //attraverso il passaggio stretto
+        getRobotPose();
+        changeParametersPassaggioStretto();
+        double time=OMPL_time;
+        do{
+            time++;
+            plan(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw,time);
+        }while (pathLength==-1);
 
-    for(int i=1;i<pathLength;i++)
-    {
-        int num=0;
-        while(!sendGoalPose(pathX[i],pathY[i],narrowPassageEndYaw) && num<numeroTentativi)
-            num++;
-    }
+        for(int i=1;i<pathLength;i++)
+        {
+            int num=0;
+            while(!sendGoalPose(pathX[i],pathY[i],narrowPassageEndYaw) && num<numeroTentativi)
+                num++;
+        }
 
-    //vado nella docking
-    getRobotPose();
-    changeParametersDocking();
-    int attempts=0;
-    while(!sendGoalPose(docking2X,docking2Y,docking2Yaw) && attempts<numeroTentativi)
-        attempts++;
+        //vado nella docking
+        getRobotPose();
+        changeParametersDocking();
+        int attempts=0;
+        while(!sendGoalPose(docking2X,docking2Y,docking2Yaw) && attempts<numeroTentativi)
+            attempts++;
 
-    printf("premere invio per continuare");
-    getch();
+        printf("premere invio per continuare");
+        getch();
 
         //vado vicino al passaggio stretto
         getRobotPose();
@@ -1202,8 +1204,10 @@ int main(int argc, char ** argv)
         //attraverso il passaggio stretto
         getRobotPose();
         changeParametersPassaggioStretto();
+        time=OMPL_time;
         do{
-            plan(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw);
+            time++;
+            plan(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw,time);
         }while (pathLength==-1);
 
         for(int i=1;i<pathLength;i++)
