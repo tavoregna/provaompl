@@ -8,13 +8,13 @@
 #define docking1Y 1.91
 #define docking1Yaw 0.0
 
-#define nearDocking1X 1.23
-#define nearDocking1Y 1.91
-#define nearDocking1Yaw 0.0
+#define nearDocking1X -0.248
+#define nearDocking1Y -1.1
+#define nearDocking1Yaw -2.35619
 
-#define docking2X 1.23
-#define docking2Y 1.91
-#define docking2Yaw 0.0
+#define docking2X -0.295386830459
+#define docking2Y 1.67060842278
+#define docking2Yaw getYawFromQuaternion(0.0,0.0,0.34943682154,0.936959928573)
 
 #define narrowPassageStartX 2.0
 #define narrowPassageStartY -1.0
@@ -24,8 +24,8 @@
 #define narrowPassageEndY 1.54
 #define narrowPassageEndYaw 2.35619
 
-#define middlePointX 0.0
-#define middlePointY 0.0
+#define middlePointX 0.667
+#define middlePointY -1.35
 #define middlePointYaw 0.0
 
 #define numeroTentativi 3
@@ -84,6 +84,7 @@
 #include <dynamic_reconfigure/BoolParameter.h>
 #include <dynamic_reconfigure/DoubleParameter.h>
 #include <dynamic_reconfigure/IntParameter.h>
+#include <dynamic_reconfigure/StrParameter.h>
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/Config.h>
 #include <ompl/geometric/planners/rrt/InformedRRTstar.h>
@@ -210,6 +211,20 @@ void toQuaternion(double pitch, double roll, double yaw,geometry_msgs::Quaternio
         q->x = cy * sr * cp - sy * cr * sp;
         q->y = cy * cr * sp + sy * sr * cp;
         q->z = sy * cr * cp - cy * sr * sp;
+}
+
+double getYawFromQuaternion(double xx,double yy,double zz,double ww)
+{
+    geometry_msgs::Quaternion q;
+    q.x=xx;
+    q.y=yy;
+    q.z=zz;
+    q.w=ww;
+    double roll;
+    double pitch;
+    double yaw;
+    toEulerAngle(q,&roll,&pitch,&yaw);
+    return yaw;
 }
 
 //nel sistema di riferimento /map
@@ -343,6 +358,20 @@ void changePrunePlan(bool val)
   conf.bools.push_back(enable_param);
 srv_req.config = conf;
 ros::service::call("/move_base/DWAPlannerROS/set_parameters", srv_req, srv_resp);
+}
+
+void changeGlobalPlanner(char * name)
+{
+  dynamic_reconfigure::ReconfigureRequest srv_req;
+  dynamic_reconfigure::ReconfigureResponse srv_resp;
+  dynamic_reconfigure::StrParameter enable_param;
+  dynamic_reconfigure::Config conf;
+
+  enable_param.name = "base_global_planner";
+  enable_param.value = name;
+  conf.strs.push_back(enable_param);
+srv_req.config = conf;
+ros::service::call("/move_base/set_parameters", srv_req, srv_resp);
 }
 
 void changeForwardPointDistance(double tol)
@@ -762,10 +791,10 @@ void changeParametersOstacoli()
 {
     //DWA
     changeRotVel(0.1,2.0,0.1);
-    changeTransVel(0.1,1.0,0.1);
-    changeXVel(-1.0,1.0);
+    changeTransVel(0.1,1.5,0.1);
+    changeXVel(-1.5,1.5);
     changeRotAcc(2.0);
-    changeTransAcc(1.0);
+    changeTransAcc(1.5);
 
     changeSimulationTime(4.0);
     changeVTHSamples(40);
@@ -793,6 +822,8 @@ void changeParametersOstacoli()
 
     changeClearingRotation(true);
     changeRecoveryBehavior(true);
+
+    changeGlobalPlanner("global_planner/GlobalPlanner");
 }
 
 void changeParametersPassaggioStretto()
@@ -830,6 +861,8 @@ void changeParametersPassaggioStretto()
 
     changeClearingRotation(false);
     changeRecoveryBehavior(false);
+
+    changeGlobalPlanner("ompl_planner/OMPLPlanner");
 }
 
 void changeParametersDocking()
@@ -841,32 +874,34 @@ void changeParametersDocking()
     changeRotAcc(2.0);
     changeTransAcc(1.0);
 
-    changeSimulationTime(4.0);
-    changeVTHSamples(40);
-    changeVXSamples(20);
+    changeSimulationTime(3.0);
+    changeVTHSamples(70);
+    changeVXSamples(50);
 
-    changeYawGoalTolerance(0.5);
+    changeYawGoalTolerance(0.03);
     changeXYGoalTolerance(0.15);
 
-    changePathDistanceBias(10);
-    changeGoalDistanceBias(50);
-    changeOccdistScale(5);
+    changePathDistanceBias(20);
+    changeGoalDistanceBias(40);
+    changeOccdistScale(0.02);
     changeForwardPointDistance(0.1);
 
     changePrunePlan(true);
 
     //costmap
 
-    changeInflationLayerCost(1.75,3.0);
-    changeInflationLayerRadius(1.55,1);
+    changeInflationLayerCost(10.0,10.0);
+    changeInflationLayerRadius(0.6,0.6);
     changeCostmapResolution(0.02);
 
-    changeRobotPadding(0.03);
+    changeRobotPadding(0.001);
 
     //move_base
 
-    changeClearingRotation(true);
-    changeRecoveryBehavior(true);
+    changeClearingRotation(false);
+    changeRecoveryBehavior(false);
+
+    changeGlobalPlanner("global_planner/GlobalPlanner");
 }
 
 
@@ -894,49 +929,18 @@ bool isStateValid(const oc::SpaceInformation *si, const ob::State *state)
     double minX=x-raggio;
     double maxX=x+raggio;
     double minY=y-raggio;
-    double maxY=y+raggio;
-
-    
+    double maxY=y+raggio;   
 
     int indexMinX=(int)floor(minX/dimCella);
     int indexMaxX=(int)floor(maxX/dimCella);
     int indexMinY=(int)floor(minY/dimCella);
     int indexMaxY=(int)floor(maxY/dimCella);
 
-    // double costMap[300][300];
-    // &(&costMap)=(double **)calloc(300*300,sizeof(double));
-
-    /*  for(int i=0;i<300;i++)
-    {
-        for(int j=0;j<300;j++)
-        {
-            costMap[i][j]=0;
-        }
-    }*/
-
-    /*    for(int j=0;j<height;j++)
-    {
-        for(int i=0;i<width;i++)
-        {
-            char v=map[i+j*width];
-            if((i>=indexMinX && i<=indexMaxX) && (j>=indexMinY && j<=indexMaxY))
-                printf("\x1b[36m%s\x1b[0m","@");
-            else if(v==-1)
-                printf("\x1b[30m%-d\x1b[0m",0);
-            else if(v==0)
-                printf("\x1b[32m%-d\x1b[0m",1);
-            else
-                printf("\x1b[33m%-d\x1b[0m",2);
-
-        }
-        printf("\n");
-    }*/
-
     for(int i=indexMinX;i<=indexMaxX;i++)
     {
         for(int j=indexMinY;j<=indexMaxY;j++)
         {
-            if(map[i+j*width]!=0)//costMap[j][i]!=0)
+            if(map[i+j*width]!=0)
             {
                 return false;
             }
@@ -983,10 +987,10 @@ void plan(double xx, double yy, double yaww,double time)
     bounds.setHigh(0,offsetX);
     bounds.setLow(1,-offsetY);
     bounds.setHigh(1,offsetY);*/
-    bounds.setLow(0,MIN(startX,xx)-(raggio*2));
-    bounds.setHigh(0,MAX(startX,xx)+(raggio*2));
-    bounds.setLow(1,MIN(startY,yy)-(raggio*2));
-    bounds.setHigh(1,MAX(startY,yy)+(raggio*2));
+    bounds.setLow(0,MIN(startX,xx)-(0.22*2));
+    bounds.setHigh(0,MAX(startX,xx)+(0.22*2));
+    bounds.setLow(1,MIN(startY,yy)-(0.22*2));
+    bounds.setHigh(1,MAX(startY,yy)+(0.22*2));
 
     space->setBounds(bounds);
 
@@ -1022,7 +1026,9 @@ void plan(double xx, double yy, double yaww,double time)
     ob::ScopedState<ob::SE2StateSpace> start(space);
     start->setX(startX);
     start->setY(startY);
-    start->setYaw(startYaw);
+    /*if(startYaw<0)
+        startYaw=startYaw+2*3.14;*/
+    start->setYaw(0.1);
 
     // create a goal state
     ob::ScopedState<ob::SE2StateSpace> goal(start);
