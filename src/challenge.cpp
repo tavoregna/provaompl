@@ -4,29 +4,33 @@
 //#define endX -2.05
 //#define endY 0.74
 
-#define docking1X 1.23
-#define docking1Y 1.91
-#define docking1Yaw 0.0
+#define docking1X -0.20
+#define docking1Y -1.24
+#define docking1Yaw -2.35619
 
-#define nearDocking1X -0.248
-#define nearDocking1Y -1.1
+#define nearDocking1X -0.20
+#define nearDocking1Y -1.24
 #define nearDocking1Yaw -2.35619
 
-#define docking2X -0.295386830459
-#define docking2Y 1.67060842278
-#define docking2Yaw getYawFromQuaternion(0.0,0.0,0.34943682154,0.936959928573)
+#define docking2X -1.2958 //-0.057
+#define docking2Y 1.2125 //1.69179743513
+#define docking2Yaw getYawFromQuaternion(0.0,0.0,0.36677,0.93031) //getYawFromQuaternion(0.0,0.0,0.356251172949,0.934390229921)
 
-#define narrowPassageStartX 2.0
-#define narrowPassageStartY -1.0
-#define narrowPassageStartYaw 2.35619
+#define nearDocking2X -0.96 //0.12
+#define nearDocking2Y 1.67 //1.905
+#define nearDocking2Yaw getYawFromQuaternion(0.0,0.0,0.36677,0.93031) //getYawFromQuaternion(0.0,0.0,0.356251172949,0.934390229921)
 
-#define narrowPassageEndX 0.11
-#define narrowPassageEndY 1.54
-#define narrowPassageEndYaw 2.35619
+#define narrowPassageStartX 0.48//1 //2.0
+#define narrowPassageStartY -1.86//-1.23 //-1.0
+#define narrowPassageStartYaw 1.57//2.356 //2.35619
 
-#define middlePointX 0.667
-#define middlePointY -1.35
-#define middlePointYaw 0.0
+#define narrowPassageEndX 0.58 //0.11
+#define narrowPassageEndY 0.43 //1.54
+#define narrowPassageEndYaw 2.35619// 2.35619
+
+#define middlePointX -0.7
+#define middlePointY -1.55
+#define middlePointYaw -0.75
 
 #define numeroTentativi 3
 
@@ -89,7 +93,8 @@
 #include <dynamic_reconfigure/Config.h>
 #include <ompl/geometric/planners/rrt/InformedRRTstar.h>
 
-
+#include <fstream>
+#include <string>
 
 
 namespace ob = ompl::base;
@@ -112,23 +117,11 @@ class OMPL_Planning{
 
 };
 
-
-
-
-
-
-
-
-
 int width;
 int height;
 double resolution;
 geometry_msgs::Pose origin;
 char * map;
-
-double startX;
-double startY;
-double startYaw;
 
 double offsetX;
 double offsetY;
@@ -144,7 +137,7 @@ double * pathY;
 char * getCostMap(int * wid,int * hei,double * res,geometry_msgs::Pose * origin)
 {
     ros::NodeHandle n;
-    ros::ServiceClient client = n.serviceClient<nav_msgs::GetMap>("static_map");
+    ros::ServiceClient client = n.serviceClient<nav_msgs::GetMap>("dynamic_map"); //static map
 
     nav_msgs::GetMap srv;
 
@@ -228,11 +221,11 @@ double getYawFromQuaternion(double xx,double yy,double zz,double ww)
 }
 
 //nel sistema di riferimento /map
-void getRobotPose()
+void getRobotPose(double* x, double* y, double* yaw)
 {
     geometry_msgs::PoseWithCovarianceStamped msg;
 
-    msg=*(ros::topic::waitForMessage<geometry_msgs::PoseWithCovarianceStamped>("amcl_pose"));
+    msg=*(ros::topic::waitForMessage<geometry_msgs::PoseWithCovarianceStamped>("poseupdate")); //"amcl_pose"
 
     geometry_msgs::Point position=msg.pose.pose.position;
     geometry_msgs::Quaternion orientation=msg.pose.pose.orientation;
@@ -249,21 +242,15 @@ void getRobotPose()
     printf("w: %f \n",orientation.w);
     printf("ROLL,PITCH,YAW: \n");
 
-    double roll,pitch,yaw;
-    toEulerAngle(orientation, &roll, &pitch, &yaw);
+    double roll,pitch,yaww;
+    toEulerAngle(orientation, &roll, &pitch, &yaww);
     printf("roll: %f \n",roll);
     printf("pitch: %f \n",pitch);
-    printf("yaw: %f \n",yaw);
+    printf("yaw: %f \n",yaww);
 
-
-
-    double yaw2   =  asin(2*orientation.x*orientation.y + 2*orientation.z*orientation.w);
-
-    printf("yaw2: %f \n",yaw2);
-
-    startX=position.x;
-    startY=position.y;
-    startYaw=yaw;
+    *x=position.x;
+    *y=position.y;
+    *yaw=yaww;
 }
 
 bool sendGoalPose(double x,double y,double yaw)
@@ -820,8 +807,8 @@ void changeParametersOstacoli()
 
     //move_base
 
-    changeClearingRotation(true);
-    changeRecoveryBehavior(true);
+    changeClearingRotation(false);
+    changeRecoveryBehavior(false);
 
     changeGlobalPlanner("global_planner/GlobalPlanner");
 }
@@ -840,14 +827,14 @@ void changeParametersPassaggioStretto()
     changeVXSamples(10);
 
     changeYawGoalTolerance(0.5);
-    changeXYGoalTolerance(0.15);
+    changeXYGoalTolerance(0.2);
 
-    changePathDistanceBias(20);
+    changePathDistanceBias(30);
     changeGoalDistanceBias(40);
     changeOccdistScale(0.02);
-    changeForwardPointDistance(0.1);
+    changeForwardPointDistance(0.3);
 
-    changePrunePlan(false);
+    changePrunePlan(true);
 
     //costmap
 
@@ -855,14 +842,15 @@ void changeParametersPassaggioStretto()
     changeInflationLayerRadius(0.6,0.6);
     changeCostmapResolution(0.02);
 
-    changeRobotPadding(0.001);
+    changeRobotPadding(0.01);
 
     //move_base
 
     changeClearingRotation(false);
     changeRecoveryBehavior(false);
 
-    changeGlobalPlanner("ompl_planner/OMPLPlanner");
+    //changeGlobalPlanner("ompl_planner/OMPLPlanner");
+    changeGlobalPlanner("global_planner/GlobalPlanner");
 }
 
 void changeParametersDocking()
@@ -878,8 +866,8 @@ void changeParametersDocking()
     changeVTHSamples(70);
     changeVXSamples(50);
 
-    changeYawGoalTolerance(0.03);
-    changeXYGoalTolerance(0.15);
+    changeYawGoalTolerance(0.1);
+    changeXYGoalTolerance(0.03);
 
     changePathDistanceBias(20);
     changeGoalDistanceBias(40);
@@ -975,7 +963,7 @@ ob::OptimizationObjectivePtr getPathLengthObjective(const ob::SpaceInformationPt
     return ob::OptimizationObjectivePtr(new ob::PathLengthOptimizationObjective(si));
 }
 
-void plan(double xx, double yy, double yaww,double time)
+void plan(double startX, double startY, double startYaw, double xx, double yy, double yaww,double time)
 {
 
     // construct the state space we are planning in
@@ -1167,8 +1155,9 @@ int main(int argc, char ** argv)
     offsetY=-origin.position.y;
 
     do{
-        //da punto di partenza a passaggio stretto
-        getRobotPose();
+        printf("da punto di partenza a passaggio stretto");
+        double x1,y1,yaw1;
+        getRobotPose(&x1,&y1,&yaw1);
         changeParametersOstacoli();
         if(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw))
         {
@@ -1176,24 +1165,38 @@ int main(int argc, char ** argv)
             while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw));
         }
 
-        //attraverso il passaggio stretto
-        getRobotPose();
+        printf("attraverso il passaggio stretto");
+        double x2,y2,yaw2;
+        getRobotPose(&x2,&y2,&yaw2);
         changeParametersPassaggioStretto();
         double time=OMPL_time;
-        do{
-            time++;
-            plan(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw,time);
-        }while (pathLength==-1);
+        if(pathLength==-1)
+        {
+            do{
+                time++;
+                plan(x2,y2,yaw2,narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw,time);
+            }while (pathLength==-1);
+        }
 
         for(int i=1;i<pathLength;i++)
         {
             int num=0;
+            if(i>=3 && i<=pathLength-3)
+                continue;
             while(!sendGoalPose(pathX[i],pathY[i],narrowPassageEndYaw) && num<numeroTentativi)
                 num++;
         }
+        //while(!sendGoalPose(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw));
 
-        //vado nella docking
-        getRobotPose();
+        printf("mi avvicino alla docking station");
+        double x3,y3,yaw3;
+        getRobotPose(&x3,&y3,&yaw3);
+        //changeParametersPassaggioStretto();
+        while(!sendGoalPose(nearDocking2X,nearDocking2Y,nearDocking2Yaw));
+
+        printf("vado nella docking");
+        double x4,y4,yaw4;
+        getRobotPose(&x4,&y4,&yaw4);
         changeParametersDocking();
         int attempts=0;
         while(!sendGoalPose(docking2X,docking2Y,docking2Yaw) && attempts<numeroTentativi)
@@ -1202,29 +1205,56 @@ int main(int argc, char ** argv)
         printf("premere invio per continuare");
         getch();
 
-        //vado vicino al passaggio stretto
-        getRobotPose();
+        printf("vado vicino al passaggio stretto");
+        double x5,y5,yaw5;
+        getRobotPose(&x5,&y5,&yaw5);
         changeParametersPassaggioStretto();
         while(!sendGoalPose(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw-3.14));
 
-        //attraverso il passaggio stretto
-        getRobotPose();
-        changeParametersPassaggioStretto();
+        printf("attraverso il passaggio stretto");
+        double x6,y6,yaw6;
+        getRobotPose(&x6,&y6,&yaw6);
+        //changeParametersPassaggioStretto();
+        attempts=0;
         time=OMPL_time;
-        do{
+
+        double angle=narrowPassageStartYaw;
+        if(angle>0)
+            angle=angle-3.14;
+        else
+            angle=angle+3.14;
+
+        /*do{
             time++;
-            plan(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw,time);
-        }while (pathLength==-1);
+            plan(x6,y6,yaw6,narrowPassageStartX,narrowPassageStartY,angle,time);
+            attempts++;
+        }while (pathLength==-1 && attempts<numeroTentativi+5);*/
 
-        for(int i=1;i<pathLength;i++)
+        if(pathLength==-1)
         {
-            int num=0;
-            while(!sendGoalPose(pathX[i],pathY[i],narrowPassageEndYaw) && num<numeroTentativi)
-                num++;
+            double angle=narrowPassageStartYaw;
+            if(angle>0)
+                angle=angle-3.14;
+            else
+                angle=angle+3.14;
+            while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,angle));
         }
+        else
+        {
+            for(int i=pathLength-1;i>=0;i--)
+            {
+                if(i>=4 && i<=pathLength-4)
+                    continue;
+                int num=0;
+                while(!sendGoalPose(pathX[i],pathY[i],angle) && num<numeroTentativi)
+                    num++;
+            }
+        }
+        //while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw));
 
-        //vado vicino alla docking station
-        getRobotPose();
+        printf("vado vicino alla docking station");
+        double x7,y7,yaw7;
+        getRobotPose(&x7,&y7,&yaw7);
         changeParametersOstacoli();
         if(!sendGoalPose(nearDocking1X,nearDocking1Y,nearDocking1Yaw))
         {
@@ -1233,8 +1263,9 @@ int main(int argc, char ** argv)
         }
 
 
-        //vado nella docking
-        getRobotPose();
+        printf("vado nella docking");
+        double x8,y8,yaw8;
+        getRobotPose(&x8,&y8,&yaw8);
         changeParametersDocking();
         attempts=0;
         while(!sendGoalPose(docking1X,docking1Y,docking1Yaw) && attempts<numeroTentativi)

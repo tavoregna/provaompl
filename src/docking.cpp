@@ -4,9 +4,9 @@
 //#define endX -2.05
 //#define endY 0.74
 
-#define endX -0.280911758712
-#define endY 1.61484503478
-#define yawY 1.91
+#define endX 0.594540596008 //-1.27991485596
+#define endY 1.49936294556 //-0.955833435059
+#define yawY 0
 
 #define MAX(X,Y) ((X) < (Y) ? (Y) : (X))
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -1161,8 +1161,8 @@ int main(int argc, char ** argv)
     geometry_msgs::Quaternion q;
     q.x=0.0;
     q.y=0.0;
-    q.z=0.333968474304;
-    q.w=0.942584244601;
+    q.z=0.00983377994223; //-0.998006783775;
+    q.w=0.999951647217; //0.0631067313312;
     toEulerAngle(q, &roll, &pitch, &yaw);
     while(!sendGoalPose(endX,endY,yaw));
     return 0;
