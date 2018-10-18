@@ -1,36 +1,11 @@
-#define raggio 0.16
-#define OMPL_time 5.0
+#define raggio 0.19
+#define OMPL_time 4.0
+#define stampaMappa false
 
 //#define endX -2.05
 //#define endY 0.74
 
-#define docking1X -0.20
-#define docking1Y -1.24
-#define docking1Yaw -2.35619
 
-#define nearDocking1X -0.20
-#define nearDocking1Y -1.24
-#define nearDocking1Yaw -2.35619
-
-#define docking2X -1.2958 //-0.057
-#define docking2Y 1.2125 //1.69179743513
-#define docking2Yaw getYawFromQuaternion(0.0,0.0,0.36677,0.93031) //getYawFromQuaternion(0.0,0.0,0.356251172949,0.934390229921)
-
-#define nearDocking2X -0.96 //0.12
-#define nearDocking2Y 1.67 //1.905
-#define nearDocking2Yaw getYawFromQuaternion(0.0,0.0,0.36677,0.93031) //getYawFromQuaternion(0.0,0.0,0.356251172949,0.934390229921)
-
-#define narrowPassageStartX 0.48//1 //2.0
-#define narrowPassageStartY -1.86//-1.23 //-1.0
-#define narrowPassageStartYaw 1.57//2.356 //2.35619
-
-#define narrowPassageEndX 0.58 //0.11
-#define narrowPassageEndY 0.43 //1.54
-#define narrowPassageEndYaw 2.35619// 2.35619
-
-#define middlePointX -0.7
-#define middlePointY -1.55
-#define middlePointYaw -0.75
 
 #define numeroTentativi 3
 
@@ -95,6 +70,11 @@
 
 #include <fstream>
 #include <string>
+#include <stdlib.h>
+#include <map>
+#include <thread>
+
+using namespace std;
 
 
 namespace ob = ompl::base;
@@ -121,7 +101,7 @@ int width;
 int height;
 double resolution;
 geometry_msgs::Pose origin;
-char * map;
+char * mappa;
 
 double offsetX;
 double offsetY;
@@ -129,8 +109,6 @@ double offsetY;
 int pathLength;
 double * pathX;
 double * pathY;
-
-
 
 //ompl::geometric::PathGeometric ppp;
 
@@ -147,19 +125,19 @@ char * getCostMap(int * wid,int * hei,double * res,geometry_msgs::Pose * origin)
         return 0;
     }
 
-    nav_msgs::OccupancyGrid map=srv.response.map;
+    nav_msgs::OccupancyGrid mapgrid=srv.response.map;
     char * toRet;
 
-    unsigned int width=map.info.width;
-    unsigned int height=map.info.height;
-    double resolution=map.info.resolution;
-    geometry_msgs::Pose pose=map.info.origin;
+    unsigned int width=mapgrid.info.width;
+    unsigned int height=mapgrid.info.height;
+    double resolution=mapgrid.info.resolution;
+    geometry_msgs::Pose pose=mapgrid.info.origin;
     toRet=(char *)malloc(width*height);
 
     for(int i=0;i<height*width;i++)
     {
 
-        toRet[i]=map.data[i];
+        toRet[i]=mapgrid.data[i];
     }
 
     *wid=width;
@@ -251,6 +229,49 @@ void getRobotPose(double* x, double* y, double* yaw)
     *x=position.x;
     *y=position.y;
     *yaw=yaww;
+}
+
+void leggiValori(map<string,double> * mappavalori)
+{
+    ifstream filevalori;
+    filevalori.open("/home/riccardo/ros_ws/src/g04-carraro-sassi-sturaro/param/points.pts");
+    if(filevalori.is_open())
+    {
+        while (!filevalori.eof())
+        {
+            string linea;
+            getline(filevalori,linea);
+            string nome="";
+            string valore="";
+            int i=0;
+            for(;i<linea.size();i++)
+            {
+                char c=linea.at(i);
+                if(c!=' ')
+                {
+                    nome+=c;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            if(nome=="")
+                continue;
+            for(i=i+1;i<linea.size();i++)
+            {
+                char c=linea.at(i);
+                if(c==' ')
+                {
+                    continue;
+                }
+                valore+=c;
+            }
+            printf("nome: %s, valore: %f \n",nome.c_str(),atof(valore.c_str()));
+            mappavalori->insert(pair <string, double> (nome.c_str(), atof(valore.c_str())));
+        }
+    }
+    filevalori.close();
 }
 
 bool sendGoalPose(double x,double y,double yaw)
@@ -774,20 +795,282 @@ changeParameter("/move_base/global_costmap/static_layer/set_parameters",val);
 changeParameter("/move_base/local_costmap/static_layer/set_parameters",val);
 }
 
-void changeParametersOstacoli()
+
+void changeParametersFase1()
+{
+    //DWA
+    thread t1(changeRotVel,0.1,2.0,0.1); //changeRotVel(0.1,2.0,0.1);
+    thread t2(changeTransVel,0.1,1.0,0.1); //changeTransVel(0.1,1.0,0.1);
+    thread t3(changeXVel,-1.0,1.0); //changeXVel(-1.0,1.0);
+    thread t4(changeRotAcc,2.0); //changeRotAcc(2.0);
+    thread t5(changeTransAcc,3.0); //changeTransAcc(3.0);
+
+    thread t6(changeSimulationTime,4.0); //changeSimulationTime(4.0);
+    thread t7(changeVTHSamples,40); //changeVTHSamples(40);
+    thread t8(changeVXSamples,20); //changeVXSamples(20);
+
+    thread t9(changeYawGoalTolerance,0.3); //changeYawGoalTolerance(0.3);
+    thread t10(changeXYGoalTolerance,0.15); //changeXYGoalTolerance(0.15);
+
+    thread t11(changePathDistanceBias,30); //changePathDistanceBias(30);
+    thread t12(changeGoalDistanceBias,40); //changeGoalDistanceBias(40);
+    thread t13(changeOccdistScale,5); //changeOccdistScale(5);
+    thread t14(changeForwardPointDistance,0.325); //changeForwardPointDistance(0.325);
+
+    thread t15(changePrunePlan,true); //changePrunePlan(true);
+
+    //costmap
+
+    thread t16(changeInflationLayerCost,1.75,1.75); //changeInflationLayerCost(1.75,1.75);
+    thread t17(changeInflationLayerRadius,1.55,1.55); //changeInflationLayerRadius(1.55,1.55);
+
+    thread t18(changeRobotPadding,0.03); //changeRobotPadding(0.03);
+
+    //move_base
+
+    thread t19(changeClearingRotation,false); //changeClearingRotation(false);
+    thread t20(changeRecoveryBehavior,false); //changeRecoveryBehavior(false);
+
+    changeGlobalPlanner("global_planner/GlobalPlanner");
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+    t7.join();
+    t8.join();
+    t9.join();
+    t10.join();
+    t11.join();
+    t12.join();
+    t13.join();
+    t14.join();
+    t15.join();
+    t16.join();
+    t17.join();
+    t18.join();
+    t19.join();
+    t20.join();
+
+}
+
+void changeParametersFase2()
+{
+    //DWA
+
+    thread t1(changeSimulationTime,2.0); //changeSimulationTime(2.0);
+
+    thread t2(changeOccdistScale,0.02); //changeOccdistScale(0.02);
+
+    //costmap
+
+    thread t3(changeInflationLayerCost,10.0,10.0); //changeInflationLayerCost(10.0,10.0);
+    thread t4(changeInflationLayerRadius,1.0,1.0); //changeInflationLayerRadius(1.0,1.0);
+
+    thread t5(changeRobotPadding,0.01); //changeRobotPadding(0.01);
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    //move_base
+}
+
+void changeParametersFase3()
+{
+    //DWA
+
+    thread t1(changeSimulationTime,4.0); //changeSimulationTime(4.0);
+    thread t2(changeVTHSamples,70); //changeVTHSamples(70);
+    thread t3(changeVXSamples,50); //changeVXSamples(50);
+
+    thread t4(changeYawGoalTolerance,0.2); //changeYawGoalTolerance(0.2);
+    thread t5(changeXYGoalTolerance,0.05); //changeXYGoalTolerance(0.05);
+
+    thread t6(changeForwardPointDistance,0.2); //changeForwardPointDistance(0.2);
+
+    //costmap
+
+    //move_base
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+}
+
+void changeParametersFase4()
+{
+    //DWA
+    thread t1(changeRotAcc,1.0); //changeRotAcc(1.0);
+    thread t2(changeTransAcc,1.0); //changeTransAcc(1.0);
+
+    thread t3(changeYawGoalTolerance,0.15); //changeYawGoalTolerance(0.15);
+    thread t4(changeXYGoalTolerance,0.03); //changeXYGoalTolerance(0.03);
+
+
+    //costmap
+
+
+    //move_base
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+}
+
+void changeParametersFase5()
+{
+    //DWA
+    thread t1(changeRotAcc,2.0); //changeRotAcc(2.0);
+    thread t2(changeTransAcc,3.0); //changeTransAcc(3.0);
+
+    thread t3(changeSimulationTime,2.0); //changeSimulationTime(2.0);
+
+    thread t4(changeYawGoalTolerance,0.2); //changeYawGoalTolerance(0.2);
+    thread t5(changeXYGoalTolerance,0.1); //changeXYGoalTolerance(0.1);
+    thread t6(changeForwardPointDistance,0.325); //changeForwardPointDistance(0.325);
+
+    //costmap
+
+
+    //move_base
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+}
+
+
+void changeParametersFase6()
+{
+
+}
+
+void changeParametersFase7()
+{
+    //DWA
+
+    thread t1(changeSimulationTime,4.0); //changeSimulationTime(4.0);
+    thread t2(changeVTHSamples,40); //changeVTHSamples(40);
+    thread t3(changeVXSamples,20); //changeVXSamples(20);
+
+
+    thread t4(changeOccdistScale,5); //changeOccdistScale(5);
+
+
+    //costmap
+
+    thread t5(changeInflationLayerCost,1.75,1.75); //changeInflationLayerCost(1.75,1.75);
+    thread t6(changeInflationLayerRadius,1.55,1.55); //changeInflationLayerRadius(1.55,1.55);
+
+    thread t7(changeRobotPadding,0.03); //changeRobotPadding(0.03);
+
+    //move_base
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+    t7.join();
+}
+
+void changeParametersFase8()
+{
+    //DWA
+    thread t1(changeRotAcc,1.0); //changeRotAcc(1.0);
+    thread t2(changeTransAcc,1.0); //changeTransAcc(1.0);
+
+    thread t3(changeYawGoalTolerance,0.15); //changeYawGoalTolerance(0.15);
+    thread t4(changeXYGoalTolerance,0.03); //changeXYGoalTolerance(0.03);
+    thread t5(changeForwardPointDistance,0.2); //changeForwardPointDistance(0.2);
+
+
+    thread t6(changeSimulationTime,3.0); //changeSimulationTime(3.0);
+    thread t7(changeVTHSamples,70); //changeVTHSamples(70);
+    thread t8(changeVXSamples,50); //changeVXSamples(50);
+
+    thread t9(changeOccdistScale,0.02); //changeOccdistScale(0.02);
+
+    //costmap
+    thread t10(changeInflationLayerCost,10.0,10.0); //changeInflationLayerCost(10.0,10.0);
+    thread t11(changeInflationLayerRadius,1.0,1.0); //changeInflationLayerRadius(1.0,1.0);
+    thread t12(changeRobotPadding,0.01); //changeRobotPadding(0.01);
+
+    //move_base
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+    t7.join();
+    t8.join();
+    t9.join();
+    t10.join();
+    t11.join();
+    t12.join();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void changeParametersOstacoliOLD()
 {
     //DWA
     changeRotVel(0.1,2.0,0.1);
-    changeTransVel(0.1,1.5,0.1);
-    changeXVel(-1.5,1.5);
+    changeTransVel(0.1,1.0,0.1);
+    changeXVel(-1.0,1.0);
     changeRotAcc(2.0);
-    changeTransAcc(1.5);
+    changeTransAcc(3.0);
 
     changeSimulationTime(4.0);
     changeVTHSamples(40);
     changeVXSamples(20);
 
-    changeYawGoalTolerance(0.5);
+    changeYawGoalTolerance(0.3);
     changeXYGoalTolerance(0.15);
 
     changePathDistanceBias(10);
@@ -799,9 +1082,8 @@ void changeParametersOstacoli()
 
     //costmap
 
-    changeInflationLayerCost(1.75,3.0);
-    changeInflationLayerRadius(1.55,1);
-    changeCostmapResolution(0.02);
+    changeInflationLayerCost(1.75,1.75);
+    changeInflationLayerRadius(1.55,1.55);
 
     changeRobotPadding(0.03);
 
@@ -809,11 +1091,9 @@ void changeParametersOstacoli()
 
     changeClearingRotation(false);
     changeRecoveryBehavior(false);
-
-    changeGlobalPlanner("global_planner/GlobalPlanner");
 }
 
-void changeParametersPassaggioStretto()
+void changeParametersPassaggioStrettoOLD()
 {
     //DWA
     changeRotVel(0.1,2.0,0.1);
@@ -840,7 +1120,6 @@ void changeParametersPassaggioStretto()
 
     changeInflationLayerCost(10.0,10.0);
     changeInflationLayerRadius(0.6,0.6);
-    changeCostmapResolution(0.02);
 
     changeRobotPadding(0.01);
 
@@ -848,12 +1127,9 @@ void changeParametersPassaggioStretto()
 
     changeClearingRotation(false);
     changeRecoveryBehavior(false);
-
-    //changeGlobalPlanner("ompl_planner/OMPLPlanner");
-    changeGlobalPlanner("global_planner/GlobalPlanner");
 }
 
-void changeParametersDocking()
+void changeParametersDockingOLD()
 {
     //DWA
     changeRotVel(0.1,2.0,0.1);
@@ -866,7 +1142,7 @@ void changeParametersDocking()
     changeVTHSamples(70);
     changeVXSamples(50);
 
-    changeYawGoalTolerance(0.1);
+    changeYawGoalTolerance(0.15);
     changeXYGoalTolerance(0.03);
 
     changePathDistanceBias(20);
@@ -880,7 +1156,6 @@ void changeParametersDocking()
 
     changeInflationLayerCost(10.0,10.0);
     changeInflationLayerRadius(0.6,0.6);
-    changeCostmapResolution(0.02);
 
     changeRobotPadding(0.001);
 
@@ -888,8 +1163,6 @@ void changeParametersDocking()
 
     changeClearingRotation(false);
     changeRecoveryBehavior(false);
-
-    changeGlobalPlanner("global_planner/GlobalPlanner");
 }
 
 
@@ -928,7 +1201,7 @@ bool isStateValid(const oc::SpaceInformation *si, const ob::State *state)
     {
         for(int j=indexMinY;j<=indexMaxY;j++)
         {
-            if(map[i+j*width]!=0)
+            if(mappa[i+j*width]!=0)
             {
                 return false;
             }
@@ -1104,29 +1377,32 @@ pathLength=-1;
         pathY[i]=y;
 
         printf("%d: X: %d, Y: %d\n",i+1,(int)floor((x+offsetX)/resolution),(int)floor((y+offsetY)/resolution));
-        map[((int)floor((x+offsetX)/resolution))+((int)floor((y+offsetY)/resolution))*width]=3;
+        mappa[((int)floor((x+offsetX)/resolution))+((int)floor((y+offsetY)/resolution))*width]=3;
 
 
     }
 
-    for(int j=0;j<height;j++)
+    if(stampaMappa)
     {
-        for(int i=0;i<width;i++)
+        for(int j=0;j<height;j++)
         {
-            char v=map[i+j*width];
+            for(int i=0;i<width;i++)
+            {
+                char v=mappa[i+j*width];
 
-            if(v==-1)
-                printf("\x1b[30m%-d\x1b[0m",0);
-            else if(v==0)
-                printf("\x1b[32m%-d\x1b[0m",1);
-            else if(v==3)
-                printf("\x1b[46m\x1b[36m%-s\x1b[0m","@");
-            else
-                printf("\x1b[33m%-d\x1b[0m",2);
+                if(v==-1)
+                    printf("\x1b[30m%-d\x1b[0m",0);
+                else if(v==0)
+                    printf("\x1b[32m%-d\x1b[0m",1);
+                else if(v==3)
+                    printf("\x1b[46m\x1b[36m%-s\x1b[0m","@");
+                else
+                    printf("\x1b[33m%-d\x1b[0m",2);
+
+            }
+            printf("\n");
 
         }
-        printf("\n");
-
     }
 }
 
@@ -1148,77 +1424,88 @@ int main(int argc, char ** argv)
 {
     //avvio nodo
     ros::init(argc, argv, "programma");
-    printf("premere invio per continuare");
-    getch();
-    map=getCostMap(&width,&height,&resolution,&origin);
+    mappa=getCostMap(&width,&height,&resolution,&origin);
     offsetX=-origin.position.x;
     offsetY=-origin.position.y;
+    pathLength=-1;
+
+    map<string,double> valori;
+    leggiValori(&valori);
 
     do{
-        printf("da punto di partenza a passaggio stretto");
+        changeParametersFase1();
+        printf("premere invio per continuare");
+        getch();
+        printf("da punto di partenza a passaggio stretto \n");
+        //printf("VALORI: X:%f Y:%f YAW:%f",valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw \n"]);
         double x1,y1,yaw1;
         getRobotPose(&x1,&y1,&yaw1);
-        changeParametersOstacoli();
-        if(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw))
+        if(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw"]))
         {
-           sendGoalPose(middlePointX,middlePointY,middlePointYaw);
-            while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw));
+           sendGoalPose(valori["middlePointX"],valori["middlePointY"],valori["middlePointYaw"]);
+            while(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw"]));
         }
 
-        printf("attraverso il passaggio stretto");
+        printf("attraverso il passaggio stretto \n");
         double x2,y2,yaw2;
         getRobotPose(&x2,&y2,&yaw2);
-        changeParametersPassaggioStretto();
+        changeParametersFase2();
         double time=OMPL_time;
         if(pathLength==-1)
         {
             do{
                 time++;
-                plan(x2,y2,yaw2,narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw,time);
+                plan(x2,y2,yaw2,valori["narrowPassageEndX"],valori["narrowPassageEndY"],valori["narrowPassageEndYaw"],time);
             }while (pathLength==-1);
         }
-
         for(int i=1;i<pathLength;i++)
         {
             int num=0;
             if(i>=3 && i<=pathLength-3)
                 continue;
-            while(!sendGoalPose(pathX[i],pathY[i],narrowPassageEndYaw) && num<numeroTentativi)
+            while(!sendGoalPose(pathX[i],pathY[i],valori["narrowPassageEndYaw"]) && num<numeroTentativi)
                 num++;
         }
         //while(!sendGoalPose(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw));
 
-        printf("mi avvicino alla docking station");
+        printf("mi avvicino alla docking station \n");
         double x3,y3,yaw3;
         getRobotPose(&x3,&y3,&yaw3);
-        //changeParametersPassaggioStretto();
-        while(!sendGoalPose(nearDocking2X,nearDocking2Y,nearDocking2Yaw));
+        changeParametersFase3();
+        int tent=0;
+        while(!sendGoalPose(valori["nearDocking2X"],valori["nearDocking2Y"],getYawFromQuaternion(0.0,0.0,valori["nearDocking2QZ"],valori["nearDocking2QW"])) && tent<numeroTentativi)
+            tent++;
 
-        printf("vado nella docking");
+        printf("vado nella docking \n");
         double x4,y4,yaw4;
         getRobotPose(&x4,&y4,&yaw4);
-        changeParametersDocking();
+        changeParametersFase4();
         int attempts=0;
-        while(!sendGoalPose(docking2X,docking2Y,docking2Yaw) && attempts<numeroTentativi)
+        while(!sendGoalPose(valori["docking2X"],valori["docking2Y"],getYawFromQuaternion(0.0,0.0,valori["docking2QZ"],valori["docking2QW"])) && attempts<numeroTentativi)
             attempts++;
 
+        changeParametersFase5();
         printf("premere invio per continuare");
         getch();
 
-        printf("vado vicino al passaggio stretto");
+        printf("vado vicino al passaggio stretto \n");
         double x5,y5,yaw5;
         getRobotPose(&x5,&y5,&yaw5);
-        changeParametersPassaggioStretto();
-        while(!sendGoalPose(narrowPassageEndX,narrowPassageEndY,narrowPassageEndYaw-3.14));
+        double angle=valori["narrowPassageEndYaw"];
+        if(angle>0)
+            angle=angle-3.14;
+        else
+            angle=angle+3.14;
+        while(!sendGoalPose(valori["narrowPassageEndX"],valori["narrowPassageEndY"],angle));
 
-        printf("attraverso il passaggio stretto");
+        printf("attraverso il passaggio stretto \n");
         double x6,y6,yaw6;
         getRobotPose(&x6,&y6,&yaw6);
-        //changeParametersPassaggioStretto();
+        changeParametersFase6();
         attempts=0;
         time=OMPL_time;
 
-        double angle=narrowPassageStartYaw;
+        angle=valori["narrowPassageStartYaw"];
         if(angle>0)
             angle=angle-3.14;
         else
@@ -1232,12 +1519,12 @@ int main(int argc, char ** argv)
 
         if(pathLength==-1)
         {
-            double angle=narrowPassageStartYaw;
-            if(angle>0)
-                angle=angle-3.14;
+            double anglee=valori["narrowPassageStartYaw"];
+            if(anglee>0)
+                anglee=anglee-3.14;
             else
-                angle=angle+3.14;
-            while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,angle));
+                anglee=anglee+3.14;
+            while(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],anglee));
         }
         else
         {
@@ -1252,27 +1539,32 @@ int main(int argc, char ** argv)
         }
         //while(!sendGoalPose(narrowPassageStartX,narrowPassageStartY,narrowPassageStartYaw));
 
-        printf("vado vicino alla docking station");
+        printf("vado vicino alla docking station \n");
         double x7,y7,yaw7;
         getRobotPose(&x7,&y7,&yaw7);
-        changeParametersOstacoli();
-        if(!sendGoalPose(nearDocking1X,nearDocking1Y,nearDocking1Yaw))
+        changeParametersFase7();
+        if(!sendGoalPose(valori["nearDocking1X"],valori["nearDocking1Y"],getYawFromQuaternion(0.0,0.0,valori["nearDocking1QZ"],valori["nearDocking1QW"])))
         {
-            sendGoalPose(middlePointX,middlePointY,middlePointYaw);
-            while(!sendGoalPose(nearDocking1X,nearDocking1Y,nearDocking1Yaw));
+            double angle=valori["middlePointYaw"];
+            if(angle>0)
+                angle=angle-3.14;
+            else
+                angle=angle+3.14;
+            sendGoalPose(valori["middlePointX"],valori["middlePointY"],angle);
+            tent=0;
+            while(!sendGoalPose(valori["nearDocking1X"],valori["nearDocking1Y"],getYawFromQuaternion(0.0,0.0,valori["nearDocking1QZ"],valori["nearDocking1QW"])) && tent<numeroTentativi+5)
+                tent++;
         }
 
 
-        printf("vado nella docking");
+        printf("vado nella docking \n");
         double x8,y8,yaw8;
         getRobotPose(&x8,&y8,&yaw8);
-        changeParametersDocking();
+        changeParametersFase8();
         attempts=0;
-        while(!sendGoalPose(docking1X,docking1Y,docking1Yaw) && attempts<numeroTentativi)
-            attempts++;
 
-        printf("premere invio per continuare");
-        getch();
+        while(!sendGoalPose(valori["docking1X"],valori["docking1Y"],getYawFromQuaternion(0.0,0.0,valori["docking1QZ"],valori["docking1QW"])) && attempts<numeroTentativi)
+            attempts++;
 
     }while(true);
     return 0;
