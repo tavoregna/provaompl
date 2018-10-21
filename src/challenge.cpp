@@ -1,4 +1,4 @@
-#define raggio 0.19
+#define raggio 0.21
 #define OMPL_time 4.0
 #define stampaMappa false
 
@@ -806,8 +806,8 @@ void changeParametersFase1()
     thread t5(changeTransAcc,3.0); //changeTransAcc(3.0);
 
     thread t6(changeSimulationTime,4.0); //changeSimulationTime(4.0);
-    thread t7(changeVTHSamples,40); //changeVTHSamples(40);
-    thread t8(changeVXSamples,20); //changeVXSamples(20);
+    thread t7(changeVTHSamples,50); //changeVTHSamples(40);
+    thread t8(changeVXSamples,30); //changeVXSamples(20);
 
     thread t9(changeYawGoalTolerance,0.3); //changeYawGoalTolerance(0.3);
     thread t10(changeXYGoalTolerance,0.15); //changeXYGoalTolerance(0.15);
@@ -869,7 +869,7 @@ void changeParametersFase2()
     thread t3(changeInflationLayerCost,10.0,10.0); //changeInflationLayerCost(10.0,10.0);
     thread t4(changeInflationLayerRadius,1.0,1.0); //changeInflationLayerRadius(1.0,1.0);
 
-    thread t5(changeRobotPadding,0.01); //changeRobotPadding(0.01);
+    thread t5(changeRobotPadding,0.005); //changeRobotPadding(0.01);
 
     t1.join();
     t2.join();
@@ -1461,8 +1461,8 @@ int main(int argc, char ** argv)
         for(int i=1;i<pathLength;i++)
         {
             int num=0;
-            if(i>=3 && i<=pathLength-3)
-                continue;
+            //if(i>=3 && i<=pathLength-3)
+            //    continue;
             while(!sendGoalPose(pathX[i],pathY[i],valori["narrowPassageEndYaw"]) && num<numeroTentativi)
                 num++;
         }
@@ -1530,8 +1530,8 @@ int main(int argc, char ** argv)
         {
             for(int i=pathLength-1;i>=0;i--)
             {
-                if(i>=4 && i<=pathLength-4)
-                    continue;
+                //if(i>=4 && i<=pathLength-4)
+                //    continue;
                 int num=0;
                 while(!sendGoalPose(pathX[i],pathY[i],angle) && num<numeroTentativi)
                     num++;

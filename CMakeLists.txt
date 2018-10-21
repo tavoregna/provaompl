@@ -148,6 +148,10 @@ add_executable(challenge src/challenge.cpp)
 add_dependencies(challenge ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(challenge ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
 
+add_executable(esame src/esame.cpp)
+add_dependencies(esame ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(esame ${catkin_LIBRARIES})
+
 add_executable(docking src/docking.cpp)
 add_dependencies(docking ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(docking ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
