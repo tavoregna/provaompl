@@ -1036,10 +1036,10 @@ void rotateRobotDock2(ros::NodeHandle n,float angle_tolerance)
     double turtlebot_theta=yaw;
     ros::Rate loop_rate(1);
     int molt=-1;
-    while(abs(turtlebot_theta_goal-turtlebot_theta)>angle_tolerance)
+    while(turtlebot_theta>turtlebot_theta_goal)//abs(turtlebot_theta_goal-turtlebot_theta)>angle_tolerance)
     {
         twist.linear.x=0;
-        twist.angular.z=molt*0.5;
+        twist.angular.z=molt*1.0;
         cmd_pub.publish(twist);
         loop_rate.sleep();
         getRobotPose(&x,&y,&yaw,false);
@@ -1048,11 +1048,41 @@ void rotateRobotDock2(ros::NodeHandle n,float angle_tolerance)
     twist.linear.x=0;
     twist.angular.z=0;
     cmd_pub.publish(twist);
-    turtlebot_theta_goal=-1.57;
-    while(abs(turtlebot_theta_goal-turtlebot_theta)>angle_tolerance)
+    turtlebot_theta_goal=-1.50;
+    while(turtlebot_theta-turtlebot_theta_goal>angle_tolerance)//abs(turtlebot_theta_goal-turtlebot_theta)>angle_tolerance)
     {
         twist.linear.x=0;
-        twist.angular.z=molt*0.5;//abs(turtlebot_theta_goal-turtlebot_theta);
+        if(turtlebot_theta-turtlebot_theta_goal>0.6)
+            twist.angular.z=molt*1.0;//abs(turtlebot_theta_goal-turtlebot_theta);
+        else
+            twist.angular.z=molt*0.2;
+        cmd_pub.publish(twist);
+        loop_rate.sleep();
+        getRobotPose(&x,&y,&yaw,false);
+        turtlebot_theta=yaw;
+    }
+    twist.linear.x=0;
+    twist.angular.z=0;
+    cmd_pub.publish(twist);
+}
+
+void rotateRobotStartNP(ros::NodeHandle n,float angle_tolerance)
+{
+    ros::Publisher cmd_pub = n.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    geometry_msgs::Twist twist;
+    double x,y,yaw;
+    getRobotPose(&x,&y,&yaw,false);
+    double turtlebot_theta_goal=-3.14;
+    double turtlebot_theta=yaw;
+    ros::Rate loop_rate(1);
+    int molt=-1;
+    while(turtlebot_theta<0)
+    {
+        twist.linear.x=0;
+        if(turtlebot_theta>-3.14+0.5)
+            twist.angular.z=molt*1.0;//abs(turtlebot_theta_goal-turtlebot_theta);
+        else
+            twist.angular.z=molt*0.2;
         cmd_pub.publish(twist);
         loop_rate.sleep();
         getRobotPose(&x,&y,&yaw,false);
@@ -1107,7 +1137,7 @@ int main(int argc, char ** argv)
         //changeParametersFase2();
         double xF2,yF2,yawF2;
         
-        system("roslaunch dem_wall_following wall_following_general.launch dir:=-1 vel:=0.30 dis:=0.28 av:=1 &");
+        system("roslaunch dem_wall_following wall_following_general.launch dir:=-1 vel:=0.30 dis:=0.30 av:=1 &");
         do{
             ros::Duration(0.01).sleep();
             getRobotPose(&xF2,&yF2,&yawF2,false);
@@ -1195,7 +1225,7 @@ int main(int argc, char ** argv)
         else
             angle=angle+3.14;
         while(!sendGoalPose(valori["narrowPassageEndX"],valori["narrowPassageEndY"],angle));*/
-        rotateRobotDock2(n,0.2);
+        rotateRobotDock2(n,0.4);
 
 
         //FASE 6: attraversamento passaggio stretto
@@ -1213,7 +1243,7 @@ int main(int argc, char ** argv)
         //system("rosnode kill wallFollowing");
 
         //ros::Duration(0.1).sleep();
-        n.setParam("wallFollowing/distance",0.30);
+        n.setParam("wallFollowing/distance",0.28);
         n.setParam("wallFollowing/direction",1);
 
         //system("roslaunch dem_wall_following wall_following_general.launch dir:=1 vel:=0.30 dis:=0.28 av:=1 &");
@@ -1225,7 +1255,10 @@ int main(int argc, char ** argv)
         system("rosnode kill wallFollowing");
         ros::Duration(0.1).sleep();
 
-
+        
+        rotateRobotStartNP(n,0.2);
+        
+        
         //FASE 7: avvicinamento alla docking station
 
         printf("vado vicino alla docking station \n");
@@ -1250,7 +1283,7 @@ int main(int argc, char ** argv)
         //changeParametersFase8();
 
         int valF8=0;
-        system("roslaunch dem_wall_following wall_following_general.launch dir:=1 vel:=0.20 dis:=0.35 av:=1 &");
+        system("roslaunch dem_wall_following wall_following_general.launch dir:=1 vel:=0.20 dis:=0.34 av:=1 &");
         do{
             ros::Duration(0.01).sleep();
             getRobotPose(&xF2,&yF2,&yawF2,false);
@@ -1260,7 +1293,7 @@ int main(int argc, char ** argv)
         //ros::Duration(0.1).sleep();
         
         n.setParam("wallFollowing/linear_velocity",0.1);
-        n.setParam("wallFollowing/forwardwall",0.65);
+        n.setParam("wallFollowing/forwardwall",0.70);
         
         do{
             ros::Duration(0.1).sleep();
