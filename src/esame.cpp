@@ -1034,7 +1034,7 @@ void rotateRobotDock2(ros::NodeHandle n,float angle_tolerance)
     getRobotPose(&x,&y,&yaw,false);
     double turtlebot_theta_goal=0;
     double turtlebot_theta=yaw;
-    ros::Rate loop_rate(1);
+    ros::Duration loop_rate(0.1);
     int molt=-1;
     while(turtlebot_theta>turtlebot_theta_goal)//abs(turtlebot_theta_goal-turtlebot_theta)>angle_tolerance)
     {
@@ -1052,10 +1052,10 @@ void rotateRobotDock2(ros::NodeHandle n,float angle_tolerance)
     while(turtlebot_theta-turtlebot_theta_goal>angle_tolerance)//abs(turtlebot_theta_goal-turtlebot_theta)>angle_tolerance)
     {
         twist.linear.x=0;
-        if(turtlebot_theta-turtlebot_theta_goal>0.6)
-            twist.angular.z=molt*1.0;//abs(turtlebot_theta_goal-turtlebot_theta);
+        if(turtlebot_theta-turtlebot_theta_goal>0.8)
+            twist.angular.z=molt*0.8;//abs(turtlebot_theta_goal-turtlebot_theta);
         else
-            twist.angular.z=molt*0.2;
+            twist.angular.z=molt*0.15;
         cmd_pub.publish(twist);
         loop_rate.sleep();
         getRobotPose(&x,&y,&yaw,false);
@@ -1074,7 +1074,7 @@ void rotateRobotStartNP(ros::NodeHandle n,float angle_tolerance)
     getRobotPose(&x,&y,&yaw,false);
     double turtlebot_theta_goal=-3.14;
     double turtlebot_theta=yaw;
-    ros::Rate loop_rate(1);
+    ros::Duration loop_rate(0.1);
     int molt=-1;
     while(turtlebot_theta<0)
     {
@@ -1123,6 +1123,11 @@ int main(int argc, char ** argv)
         changeParametersFase1();
         printf("premere invio per continuare");
         getch();
+        
+        //avvio manipolatore
+        n.setParam("programma/manipulator",1);
+        
+        
         printf("da punto di partenza a passaggio stretto \n");
         if(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw"]))
         {
@@ -1185,6 +1190,10 @@ int main(int argc, char ** argv)
         system("rosnode kill wallFollowing");
         ros::Duration(0.1).sleep();
         
+        
+        n.setParam("programma/abbassa",1);
+        
+        
        /* system("roslaunch dem_wall_following wall_following_general.launch dir:=1 vel:=0.10 dis:=0.24 av:=1 fw:=0.8 &")
         do{
             ros::Duration(0.01).sleep();
@@ -1216,8 +1225,21 @@ int main(int argc, char ** argv)
         //FASE 5: ritorno nel passaggio stretto
 
         //changeParametersFase5();
-        printf("premere invio per continuare");
-        getch();
+        /*printf("premere invio per continuare");
+        getch();*/
+        
+        
+        
+        int ripartire=1;
+        do
+        {
+            ros::Duration(0.1).sleep();
+            n.getParam("programma/manipulator",ripartire);
+        }while(ripartire==1);
+        
+        n.setParam("programma/abbassa",0);
+        
+        
         printf("vado vicino al passaggio stretto \n");
         /*double angle=valori["narrowPassageEndYaw"];
         if(angle>0)
