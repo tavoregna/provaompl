@@ -1,4 +1,4 @@
-#define numeroTentativi 3
+#define MAX_ATTEMPTS 3
 #define PUBLISHER_TOPIC "/turtlebot/mobile_base/commands/velocity"
 #define SUBSCRIBER_TOPIC "/turtlebot/scan"
 #define WALL_DISTANCE 0.18
@@ -1053,9 +1053,9 @@ void rotateRobotDock2(ros::NodeHandle n,float angle_tolerance)
     {
         twist.linear.x=0;
         if(turtlebot_theta-turtlebot_theta_goal>0.8)
-            twist.angular.z=molt*0.8;//abs(turtlebot_theta_goal-turtlebot_theta);
+            twist.angular.z=molt*1.0; //abs(turtlebot_theta_goal-turtlebot_theta);
         else
-            twist.angular.z=molt*0.15;
+            twist.angular.z=molt*0.2;
         cmd_pub.publish(twist);
         loop_rate.sleep();
         getRobotPose(&x,&y,&yaw,false);
@@ -1080,7 +1080,7 @@ void rotateRobotStartNP(ros::NodeHandle n,float angle_tolerance)
     {
         twist.linear.x=0;
         if(turtlebot_theta>-3.14+0.5)
-            twist.angular.z=molt*1.0;//abs(turtlebot_theta_goal-turtlebot_theta);
+            twist.angular.z=molt*1.0; //abs(turtlebot_theta_goal-turtlebot_theta);
         else
             twist.angular.z=molt*0.2;
         cmd_pub.publish(twist);
@@ -1101,11 +1101,15 @@ void rotateRobotFineOstacoli(ros::NodeHandle n)
     getRobotPose(&x,&y,&yaw,false);
     double turtlebot_theta=yaw;
     ros::Duration loop_rate(0.05);
-    int molt=-1;
-    while(!(turtlebot_theta<=0.0 && turtlebot_theta>=-1.57))
+    int molt;
+    if(yaw>0)
+        molt=-1;
+    else
+        molt=1;
+    while(!(turtlebot_theta<=(3.14/2.0) && turtlebot_theta>=0.0))
     {
         twist.linear.x=0;
-        twist.angular.z=molt*0.2;
+        twist.angular.z=molt*0.8;
         cmd_pub.publish(twist);
         loop_rate.sleep();
         getRobotPose(&x,&y,&yaw,false);
@@ -1125,10 +1129,10 @@ void rotateRobotFineOstacoliDocking(ros::NodeHandle n)
     double turtlebot_theta=yaw;
     ros::Duration loop_rate(0.05);
     int molt=-1;
-    while(!(turtlebot_theta>=3.14-3.14/6.0 && turtlebot_theta>=3.14+3.14/6.0))
+    while(!(turtlebot_theta>=(3.14/2.0)-(3.14/6.0) && turtlebot_theta<=(3.14/2.0)+(3.14/6.0)))
     {
         twist.linear.x=0;
-        twist.angular.z=molt*0.2;
+        twist.angular.z=molt*0.8;
         cmd_pub.publish(twist);
         loop_rate.sleep();
         getRobotPose(&x,&y,&yaw,false);
@@ -1138,6 +1142,30 @@ void rotateRobotFineOstacoliDocking(ros::NodeHandle n)
     twist.angular.z=0;
     cmd_pub.publish(twist);
 }
+
+void rotateRobotFineOstacoliDockingAlternative(ros::NodeHandle n)
+{
+    ros::Publisher cmd_pub = n.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    geometry_msgs::Twist twist;
+    double x,y,yaw;
+    getRobotPose(&x,&y,&yaw,false);
+    double turtlebot_theta=yaw;
+    ros::Duration loop_rate(0.05);
+    int molt=1;
+    while(!(turtlebot_theta>=3.14-(3.14/4.0) || turtlebot_theta<=-3.14+(3.14/4.0)))
+    {
+        twist.linear.x=0;
+        twist.angular.z=molt*0.8;
+        cmd_pub.publish(twist);
+        loop_rate.sleep();
+        getRobotPose(&x,&y,&yaw,false);
+        turtlebot_theta=yaw;
+    }
+    twist.linear.x=0;
+    twist.angular.z=0;
+    cmd_pub.publish(twist);
+}
+
 int getch()
 {
     static struct termios oldt, newt;
@@ -1165,25 +1193,26 @@ int main(int argc, char ** argv)
     do{
         //FASE 1: da punto di partenza a passaggio stretto
 
-        changeParametersFase1(); // DA RIMUOVERE
         printf("premere invio per continuare");
         getch();
         
         //avvio manipolatore
         n.setParam("programma/following",0);
         n.setParam("programma/manipulator",1);
-        system("roslaunch dem_wall_following wall_following_general.launch dir:=-1 vel:=0.30 dis:=0.30 av:=1 &");
+        system("roslaunch dem_wall_following wall_following_general.launch dir:=-1 vel:=0.2 dis:=0.30 av:=1 &");
         
         printf("da punto di partenza a passaggio stretto \n");
-        if(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw"]))
-        {
-           sendGoalPose(valori["middlePointX"],valori["middlePointY"],valori["middlePointYaw"]);
-            while(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw"]));
-        }
+        while(!sendGoalPose(valori["narrowPassageStartX"],valori["narrowPassageStartY"],valori["narrowPassageStartYaw"]));
+
+
+        //FASE 2: orientazione verso il passaggio stretto
+
+        printf("orientazione verso il passaggio stretto \n");
         rotateRobotFineOstacoli(n);
 
 
-        //FASE 2: attraversamento passaggio stretto
+        //FASE 3: attraversamento passaggio stretto
+
         n.setParam("programma/following",1);
         printf("attraverso il passaggio stretto \n");
         double xF2,yF2,yawF2;
@@ -1195,6 +1224,7 @@ int main(int argc, char ** argv)
         }while(!(xF2>=valori["PSx"] && yF2>=valori["PS1startY"])); //da sistemare
         
         n.setParam("wallFollowing/distance",0.25);
+        n.setParam("wallFollowing/linear_velocity",0.4); //0.4
 
         do{
             ros::Duration(0.01).sleep();
@@ -1202,11 +1232,16 @@ int main(int argc, char ** argv)
         }while(!(xF2>=valori["PSx"] && yF2>=valori["PS1middleY"]));
         
         n.setParam("wallFollowing/direction",1);
+        n.setParam("wallFollowing/linear_velocity",0.6);
         
         do{
             ros::Duration(0.01).sleep();
             getRobotPose(&xF2,&yF2,&yawF2,false);
         }while(!(xF2>=valori["PSx"] && yF2>=valori["PS1endY"]));
+
+        //FASE 4: posizionamento nella docking station
+
+        printf("posizionamento nella docking station \n");
         
         n.setParam("wallFollowing/distance",0.23);
         n.setParam("wallFollowing/linear_velocity",0.1);
@@ -1222,7 +1257,11 @@ int main(int argc, char ** argv)
         ros::Duration(0.1).sleep();
                
         n.setParam("programma/abbassa",1);
+
+        //FASE 5: attendo il posizionamento degli oggetti
         
+        printf("attendo il posizionamento degli oggetti \n");
+
         int ripartire=1;
         do
         {
@@ -1231,12 +1270,14 @@ int main(int argc, char ** argv)
         }while(ripartire==1);
         
         n.setParam("programma/abbassa",0);
-        system("roslaunch dem_wall_following wall_following_general.launch dir:=-1 vel:=0.30 dis:=0.25 av:=1 &");
+        system("roslaunch dem_wall_following wall_following_general.launch dir:=-1 vel:=0.60 dis:=0.25 av:=1 &"); //vel 0.4
         
-        printf("vado vicino al passaggio stretto \n");
+        //FASE 6: mi oriento verso il passaggio stretto
+
+        printf("mi oriento verso il passaggio stretto \n");
         rotateRobotDock2(n,0.4);
 
-        //FASE 6: attraversamento passaggio stretto
+        //FASE 7: attraversamento passaggio stretto
 
         n.setParam("programma/following",1);
         printf("attraverso il passaggio stretto \n");
@@ -1250,6 +1291,7 @@ int main(int argc, char ** argv)
 
         n.setParam("wallFollowing/distance",0.28);
         n.setParam("wallFollowing/direction",1);
+        n.setParam("wallFollowing/linear_velocity",0.3);
 
         do{
             ros::Duration(0.01).sleep();
@@ -1260,49 +1302,95 @@ int main(int argc, char ** argv)
         n.setParam("programma/following",0);
         ros::Duration(0.1).sleep();
 
+        //FASE 8: mi oriento verso la seconda docking station
+
+        printf("mi oriento verso la seconda docking station \n");
         rotateRobotStartNP(n,0.2);
 
-        system("roslaunch dem_wall_following wall_following_general.launch dir:=1 vel:=0.10 dis:=0.34 av:=1 &");        
+        system("roslaunch dem_wall_following wall_following_general.launch dir:=1 vel:=0.10 dis:=0.32 av:=1 &");        
+
+        //FASE 9: vado vicino alla docking station
         
         printf("vado vicino alla docking station \n");
-        if(!sendGoalPose(valori["nearDocking1X"],valori["nearDocking1Y"],getYawFromQuaternion(0.0,0.0,valori["nearDocking1QZ"],valori["nearDocking1QW"])))
+
+        int numAttempts=0;  
+        bool success=false;   
+        
+        while(!(success=sendGoalPose(valori["nearDocking1X"],valori["nearDocking1Y"],getYawFromQuaternion(0.0,0.0,valori["nearDocking1QZ"],valori["nearDocking1QW"]))) )
         {
-            double angle=valori["middlePointYaw"];
-            if(angle>0)
-                angle=angle-3.14;
-            else
-                angle=angle+3.14;
-            sendGoalPose(valori["middlePointX"],valori["middlePointY"],angle);
-            int tentativiF7=0;
-            while(!sendGoalPose(valori["nearDocking1X"],valori["nearDocking1Y"],getYawFromQuaternion(0.0,0.0,valori["nearDocking1QZ"],valori["nearDocking1QW"])) && tentativiF7<numeroTentativi+5)
-                tentativiF7++;
+            numAttempts++;
+            if(numAttempts>=MAX_ATTEMPTS)
+                break;
         }
+        
+        if(success)
+        {
+            rotateRobotFineOstacoliDocking(n);  
+            
+            n.setParam("programma/following",1);
+            
+            //FASE 10: posizionamento nella docking station
 
-        rotateRobotFineOstacoliDocking(n);
-        
-        n.setParam("programma/following",1);
-        
-        //FASE 8: posizionamento nella docking station
+            printf("vado nella docking \n");
 
-        printf("vado nella docking \n");
+            int valF8=0;
+            
+            do{
+                ros::Duration(0.01).sleep();
+                getRobotPose(&xF2,&yF2,&yawF2,false);
+            }while(!(xF2>=valori["DKx1"] && yF2>=valori["DKy1"]));
+            
+            n.setParam("wallFollowing/linear_velocity",0.1);
+            n.setParam("wallFollowing/forwardwall",0.66);
+            
+            do{
+                ros::Duration(0.01).sleep();
+                n.getParam("wallFollowing/avanti",valF8);
+            }while(valF8!=0);
+            system("rosnode kill wallFollowing &");
+            n.setParam("programma/following",0);
+            ros::Duration(0.1).sleep();
+        }
+        else
+        {
+        while(!sendGoalPose(valori["nearDocking1Xalternative"],valori["nearDocking1Yalternative"],getYawFromQuaternion(0.0,0.0,valori["nearDocking1QZalternative"],valori["nearDocking1QWalternative"])));
 
-        int valF8=0;
-        
-        do{
-            ros::Duration(0.01).sleep();
-            getRobotPose(&xF2,&yF2,&yawF2,false);
-        }while(!(xF2>=valori["DKx1"] && yF2>=valori["DKy1"]));
-        
-        n.setParam("wallFollowing/linear_velocity",0.1);
-        n.setParam("wallFollowing/forwardwall",0.70);
-        
-        do{
-            ros::Duration(0.01).sleep();
-            n.getParam("wallFollowing/avanti",valF8);
-        }while(valF8!=0);
-        system("rosnode kill wallFollowing &");
-        n.setParam("programma/following",0);
-        ros::Duration(0.1).sleep();
+                rotateRobotFineOstacoliDockingAlternative(n);
+
+                n.setParam("programma/following",1);
+                n.setParam("wallFollowing/direction",-1);
+                n.setParam("wallFollowing/linear_velocity",0.3);
+                n.setParam("wallFollowing/distance",0.33);
+
+                //FASE 10: posizionamento nella docking station
+
+                printf("vado nella docking \n");
+
+                int valF8=0;
+
+                do{
+                    ros::Duration(0.01).sleep();
+                    getRobotPose(&xF2,&yF2,&yawF2,false);
+                }while(!(xF2>=valori["DKx1Alternative"] && yF2<=valori["DKy1Alternative"]));
+
+                n.setParam("wallFollowing/linear_velocity",0.08);
+                
+                do{
+                    ros::Duration(0.01).sleep();
+                    getRobotPose(&xF2,&yF2,&yawF2,false);
+                }while(!(xF2>=valori["DKx1Alternative"] && yF2<=valori["DKy1Alternative2"]));
+                
+                n.setParam("wallFollowing/forwardwall",-0.88);
+
+                do{
+                    ros::Duration(0.01).sleep();
+                    n.getParam("wallFollowing/avanti",valF8);
+                }while(valF8!=0);
+                system("rosnode kill wallFollowing &");
+                n.setParam("programma/following",0);
+                ros::Duration(0.1).sleep();
+       }
+
 
     }while(true);
     return 0;

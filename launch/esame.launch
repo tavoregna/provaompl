@@ -1,0 +1,3 @@
+<launch>
+<node name="esame" pkg="provaompl" type="esame" output="screen" />
+</launch>

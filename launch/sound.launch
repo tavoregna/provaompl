@@ -1,0 +1,5 @@
+<launch>
+<node name="soundListener" pkg="provaompl" type="soundListener" output="screen" />
+<node name="sound" pkg="provaompl" type="sound" output="screen" />
+<node name="soundplay_node.py" pkg="sound_play" type="soundplay_node.py" output="screen" />
+</launch>

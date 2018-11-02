@@ -168,6 +168,14 @@ add_executable(funzioni src/funzioni.cpp)
 add_dependencies(funzioni ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(funzioni ${catkin_LIBRARIES})
 
+add_executable(sound src/sound.cpp)
+add_dependencies(sound ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(sound ${catkin_LIBRARIES})
+
+add_executable(soundListener src/soundListener.cpp)
+add_dependencies(soundListener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(soundListener ${catkin_LIBRARIES})
+
 add_executable(mappa src/mappa.cpp)
 add_dependencies(mappa ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mappa ${catkin_LIBRARIES})
